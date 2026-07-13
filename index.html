@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScaleOne — Live Weighbridge</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap');
+
+  :root{
+    --bg: #14171a;
+    --panel: #1d2226;
+    --bezel: #0c0e10;
+    --steel: #3a4147;
+    --steel-light: #565f66;
+    --led-amber: #ffb200;
+    --led-amber-dim: #4a3a12;
+    --led-green: #35e08a;
+    --text: #e7ebee;
+    --muted: #8a949c;
+    --danger: #ff5a4e;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    background:
+      radial-gradient(ellipse at top, #1c2024 0%, #101316 60%);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+  }
+
+  .rig{
+    width: 100%;
+    max-width: 640px;
+  }
+
+  /* Top plate: title + status */
+  .plate-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    padding: 0 6px 14px 6px;
+  }
+
+  .brand{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+
+  .brand .eyebrow{
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    letter-spacing:3px;
+    color: var(--muted);
+    text-transform:uppercase;
+  }
+
+  .brand h1{
+    font-size: 22px;
+    font-weight:700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .status-pill{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-family:'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: var(--bezel);
+    border: 1px solid var(--steel);
+  }
+
+  .dot{
+    width:9px; height:9px; border-radius:50%;
+    background: var(--danger);
+    box-shadow: 0 0 8px var(--danger);
+    transition: all .3s ease;
+  }
+  .dot.live{
+    background: var(--led-green);
+    box-shadow: 0 0 8px var(--led-green), 0 0 16px var(--led-green);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .dot.searching{
+    background: var(--led-amber);
+    box-shadow: 0 0 8px var(--led-amber);
+    animation: pulse 0.8s ease-in-out infinite;
+  }
+
+  @keyframes pulse{
+    0%,100%{ opacity:1; }
+    50%{ opacity: .35; }
+  }
+
+  /* Main indicator body */
+  .indicator{
+    background: linear-gradient(180deg, #23282c 0%, #1a1e21 100%);
+    border-radius: 18px;
+    border: 1px solid var(--steel);
+    box-shadow:
+      0 20px 50px rgba(0,0,0,.5),
+      inset 0 1px 0 rgba(255,255,255,.04);
+    padding: 28px;
+    position: relative;
+    overflow:hidden;
+  }
+
+  /* screws */
+  .screw{
+    position:absolute; width:10px; height:10px; border-radius:50%;
+    background: radial-gradient(circle at 35% 35%, #6b747a, #23282c 70%);
+    box-shadow: inset 0 0 2px #000;
+  }
+  .screw.tl{top:14px; left:14px;}
+  .screw.tr{top:14px; right:14px;}
+  .screw.bl{bottom:14px; left:14px;}
+  .screw.br{bottom:14px; right:14px;}
+
+  .display-window{
+    background: var(--bezel);
+    border-radius: 10px;
+    padding: 34px 20px;
+    border: 1px solid #000;
+    box-shadow: inset 0 4px 14px rgba(0,0,0,.7);
+    text-align:center;
+  }
+
+  .weight-value{
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(56px, 14vw, 92px);
+    font-weight: 700;
+    color: var(--led-amber);
+    text-shadow:
+      0 0 10px rgba(255,178,0,.6),
+      0 0 24px rgba(255,178,0,.35);
+    letter-spacing: 4px;
+    line-height: 1;
+    transition: color .3s ease, text-shadow .3s ease;
+  }
+
+  .weight-value.offline{
+    color: var(--led-amber-dim);
+    text-shadow: none;
+  }
+
+  .weight-unit{
+    font-family:'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--muted);
+    letter-spacing: 4px;
+    margin-top: 10px;
+    text-transform: uppercase;
+  }
+
+  .raw-line{
+    margin-top: 16px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--steel-light);
+    letter-spacing: 1px;
+    word-break: break-all;
+  }
+
+  /* Info strip */
+  .info-strip{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 22px;
+  }
+
+  .info-cell{
+    background: var(--bezel);
+    border: 1px solid var(--steel);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+
+  .info-cell .label{
+    font-family:'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .info-cell .value{
+    font-family:'Share Tech Mono', monospace;
+    font-size: 14px;
+    margin-top: 4px;
+    color: var(--text);
+  }
+
+  footer{
+    text-align:center;
+    margin-top: 18px;
+    font-family:'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  @media (max-width: 420px){
+    .info-strip{ grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="rig">
+
+  <div class="plate-header">
+    <div class="brand">
+      <span class="eyebrow">Weighbridge Indicator</span>
+      <h1>ScaleOne</h1>
+    </div>
+    <div class="status-pill">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">CONNECTING</span>
+    </div>
+  </div>
+
+  <div class="indicator">
+    <div class="screw tl"></div>
+    <div class="screw tr"></div>
+    <div class="screw bl"></div>
+    <div class="screw br"></div>
+
+    <div class="display-window">
+      <div class="weight-value offline" id="weightValue">— — — —</div>
+      <div class="weight-unit" id="weightUnit">waiting for data</div>
+      <div class="raw-line" id="rawLine">&nbsp;</div>
+    </div>
+
+    <div class="info-strip">
+      <div class="info-cell">
+        <div class="label">Port</div>
+        <div class="value" id="portValue">—</div>
+      </div>
+      <div class="info-cell">
+        <div class="label">Baud</div>
+        <div class="value" id="baudValue">—</div>
+      </div>
+      <div class="info-cell">
+        <div class="label">Updated</div>
+        <div class="value" id="updatedValue">—</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>AUTO-RECONNECT ENABLED · POLLING EVERY 500ms</footer>
+</div>
+
+<script>
+  // Backend base URL. If you open this file directly (file://) instead of
+  // via the FastAPI server, edit this to "http://localhost:8000"
+  const API_BASE = "";
+
+  const dot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const weightValue = document.getElementById('weightValue');
+  const weightUnit = document.getElementById('weightUnit');
+  const rawLine = document.getElementById('rawLine');
+  const portValue = document.getElementById('portValue');
+  const baudValue = document.getElementById('baudValue');
+  const updatedValue = document.getElementById('updatedValue');
+
+  async function poll(){
+    try{
+      const res = await fetch(`${API_BASE}/api/weight`, { cache: "no-store" });
+      const data = await res.json();
+
+      const status = data.status || "Disconnected";
+
+      if(status === "Connected"){
+        dot.className = "dot live";
+        statusText.textContent = "LIVE";
+        weightValue.classList.remove("offline");
+        weightValue.textContent = data.weight ?? "0";
+        weightUnit.textContent = data.unit ? data.unit.toUpperCase() : "READING";
+        rawLine.textContent = "RAW: " + (data.raw_data || "");
+      } else if (status.startsWith("Searching")) {
+        dot.className = "dot searching";
+        statusText.textContent = "SEARCHING PORT";
+        weightValue.classList.add("offline");
+        weightValue.textContent = "— — — —";
+        weightUnit.textContent = "auto-detecting indicator";
+        rawLine.textContent = status;
+      } else {
+        dot.className = "dot";
+        statusText.textContent = "DISCONNECTED";
+        weightValue.classList.add("offline");
+        weightValue.textContent = "— — — —";
+        weightUnit.textContent = "no connection";
+        rawLine.textContent = "&nbsp;";
+      }
+
+      portValue.textContent = data.port || "—";
+      baudValue.textContent = data.baudrate ? data.baudrate : "—";
+      updatedValue.textContent = data.last_updated || "—";
+
+    } catch(err){
+      dot.className = "dot";
+      statusText.textContent = "SERVER OFFLINE";
+      rawLine.textContent = "Cannot reach backend at " + (API_BASE || window.location.origin);
+    }
+  }
+
+  poll();
+  setInterval(poll, 500);
+</script>
+
+</body>
+</html>
